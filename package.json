@@ -1,0 +1,27 @@
+{
+  "name": "b2b-ma-dpp-social-publisher",
+  "version": "1.0.0",
+  "description": "B2B MA-DPP Digital Product Passport social publishing & scheduling engine for LinkedIn and Facebook powered by ego-browser",
+  "main": "scripts/schedule_campaign.mjs",
+  "type": "module",
+  "scripts": {
+    "generate": "python3 scripts/generate_30_campaign.py",
+    "render": "ego-browser nodejs < scripts/render_infographics.mjs",
+    "publish:li": "ego-browser nodejs < scripts/publish_instant_linkedin.mjs",
+    "publish:fb": "ego-browser nodejs < scripts/publish_instant_facebook.mjs",
+    "schedule": "ego-browser nodejs < scripts/schedule_campaign.mjs",
+    "verify": "ego-browser nodejs < scripts/verify_planner.mjs"
+  },
+  "keywords": [
+    "antigravity-skill",
+    "ma-dpp",
+    "digital-product-passport",
+    "linkedin-automation",
+    "meta-business-suite",
+    "facebook-automation",
+    "ego-browser",
+    "espr"
+  ],
+  "author": "cnproduct",
+  "license": "MIT"
+}
