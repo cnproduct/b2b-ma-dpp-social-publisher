@@ -4,15 +4,15 @@
 
 ## 1. 核心路由与页面
 - **Meta Business Suite Composer (官方发帖与排期主控器 - 推荐默认)**:
-  `https://business.facebook.com/latest/composer?asset_id=[asset_id]`
+  `https://business.facebook.com/latest/composer?asset_id=100066493838069`
 - **Meta Business Suite 已发布帖子审计 (Published Posts)**:
-  `https://business.facebook.com/latest/posts/published_posts?asset_id=[asset_id]`
+  `https://business.facebook.com/latest/posts/published_posts?asset_id=100066493838069`
 - **Meta Business Suite 已定时帖子大盘 (Scheduled Posts)**:
-  `https://business.facebook.com/latest/posts/scheduled_posts?asset_id=[asset_id]`
+  `https://business.facebook.com/latest/posts/scheduled_posts?asset_id=100066493838069`
 - **Meta Business Suite 日程本 (Planner / Calendar)**:
-  `https://business.facebook.com/latest/content_calendar?asset_id=[asset_id]`
+  `https://business.facebook.com/latest/content_calendar?asset_id=100066493838069`
 - **Facebook 官方主页前台动态流 (Public Live Feed)**:
-  `https://www.facebook.com/[page_id]`
+  `https://www.facebook.com/profile.php?id=100066493838069` (默认 Ma-dpp 官方主页)
 
 ---
 

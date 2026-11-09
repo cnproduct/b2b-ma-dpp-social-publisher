@@ -92,7 +92,7 @@ for (const item of manifest) {
   if ((targetPlatform === 'all' || targetPlatform === 'linkedin') && liPage) {
     try {
       console.log(\`[LinkedIn] Scheduling Day \${item.day}...\`);
-      await liPage.goto("https://www.linkedin.com/company/35934326/admin/dashboard/");
+      await liPage.goto("https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null");
       await liPage.waitForTimeout(3000);
 
       // Open composer
@@ -124,7 +124,7 @@ for (const item of manifest) {
   if ((targetPlatform === 'all' || targetPlatform === 'facebook') && fbPage) {
     try {
       console.log(\`[Facebook] Processing Day \${item.day} in Meta Business Suite...\`);
-      await fbPage.goto("https://business.facebook.com/latest/posts/scheduled_posts?asset_id=115347823236277");
+      await fbPage.goto("https://business.facebook.com/latest/posts/scheduled_posts?asset_id=100066493838069");
       await fbPage.waitForTimeout(4000);
 
       // Click Create post button

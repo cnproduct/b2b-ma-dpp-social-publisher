@@ -3,7 +3,7 @@
 本文件记录在 LinkedIn 公司主页 (Admin View) 中通过 `ego-browser` 执行无头/自动化操作的关键 DOM 选择器、事件触发机制与容错方案。
 
 ## 1. 核心路由与入口
-- **公司主页管理后台**: `https://www.linkedin.com/company/[company_id]/admin/dashboard/`
+- **公司主页管理后台**: `https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null` (默认 MA-DPP 官方主页，ID: `144112219`)
 - **动态管理入口**: 点击左上侧按钮包含 `创建` -> 展开菜单点击 `发动态`。
 - **动态列表管理**: 点击左侧导航栏 `主页动态`，可查看 `已发布`、`已设定发布时间` 等分标签。
 

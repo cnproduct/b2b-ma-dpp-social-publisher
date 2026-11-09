@@ -5,8 +5,8 @@ import path from 'node:path';
 const task = await taskSpace(1);
 const page = task.page("p48") || await task.newPage();
 
-console.log("[LinkedIn] Navigating to admin dashboard...");
-await page.goto("https://www.linkedin.com/company/35934326/admin/dashboard/", { waitUntil: "domcontentloaded", timeout: 30000 });
+console.log("[LinkedIn] Navigating to MA-DPP company page admin...");
+await page.goto("https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null", { waitUntil: "domcontentloaded", timeout: 30000 });
 await new Promise(r => setTimeout(r, 3000));
 
 // 1. Open post composer

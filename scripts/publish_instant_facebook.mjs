@@ -16,8 +16,8 @@ if (typeof page.cdp === 'function') {
   });
 }
 
-console.log("[Facebook] Navigating to Meta Business Suite Composer...");
-await page.goto("https://business.facebook.com/latest/composer?asset_id=115347823236277", { waitUntil: "domcontentloaded", timeout: 30000 });
+console.log("[Facebook] Navigating to Meta Business Suite Composer for Ma-dpp...");
+await page.goto("https://business.facebook.com/latest/composer?asset_id=100066493838069", { waitUntil: "domcontentloaded", timeout: 30000 });
 await new Promise(r => setTimeout(r, 4000));
 
 // 2. Locate and upload infographic photo
@@ -128,7 +128,7 @@ if (publishBtnCoords) {
 
 // 7. Verify published post in table
 console.log("[Facebook] Auditing published post feed...");
-await page.goto("https://business.facebook.com/latest/posts/published_posts?asset_id=115347823236277", { waitUntil: "domcontentloaded", timeout: 30000 });
+await page.goto("https://business.facebook.com/latest/posts/published_posts?asset_id=100066493838069", { waitUntil: "domcontentloaded", timeout: 30000 });
 await new Promise(r => setTimeout(r, 4000));
 
 const auditResult = await page.evaluate(() => {

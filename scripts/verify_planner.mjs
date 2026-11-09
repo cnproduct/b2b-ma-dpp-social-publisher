@@ -5,8 +5,8 @@ const task = await taskSpace(1);
 const liPage = task.page("p48") || await task.newPage();
 const fbPage = task.page("p51") || await task.newPage();
 
-console.log("[Audit] Verifying LinkedIn scheduled queue...");
-await liPage.goto("https://www.linkedin.com/company/35934326/admin/dashboard/", { waitUntil: "domcontentloaded", timeout: 30000 });
+console.log("[Audit] Verifying LinkedIn scheduled queue for MA-DPP...");
+await liPage.goto("https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null", { waitUntil: "domcontentloaded", timeout: 30000 });
 await new Promise(r => setTimeout(r, 3000));
 
 await liPage.evaluate(() => {
@@ -36,8 +36,8 @@ await liPage.screenshot({ path: "linkedin_scheduled_audit.png" });
 console.log("[Audit] LinkedIn scheduled audit screenshot saved: linkedin_scheduled_audit.png");
 
 // 2. Facebook Planner Audit
-console.log("[Audit] Verifying Meta Business Suite Planner...");
-await fbPage.goto("https://business.facebook.com/latest/planner?asset_id=115347823236277", { waitUntil: "domcontentloaded", timeout: 30000 });
+console.log("[Audit] Verifying Meta Business Suite Planner for Ma-dpp...");
+await fbPage.goto("https://business.facebook.com/latest/planner?asset_id=100066493838069", { waitUntil: "domcontentloaded", timeout: 30000 });
 await new Promise(r => setTimeout(r, 5000));
 await fbPage.screenshot({ path: "facebook_planner_audit.png" });
 console.log("[Audit] Facebook Planner audit screenshot saved: facebook_planner_audit.png");

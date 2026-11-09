@@ -88,6 +88,11 @@ ego-browser nodejs < scripts/render_infographics.mjs
 
 ---
 
+### 1. 默认官方主页与渠道基准 (Default Official Targets)
+- **LinkedIn 官方主页**: `https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null` (MA-DPP 官方企业主页，Company ID: `144112219`)
+- **Facebook 官方主页**: `https://www.facebook.com/profile.php?id=100066493838069` (Ma-dpp 官方公共主页，Page ID: `100066493838069`)
+- **Meta Business Suite 调度器**: `https://business.facebook.com/latest/composer?asset_id=100066493838069` (资产 ID: `100066493838069`)
+
 ### 2. 即时发布到各平台
 ```bash
 # 即时发布到 LinkedIn Company Page

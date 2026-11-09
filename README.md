@@ -77,7 +77,12 @@ python3 scripts/generate_60_campaign.py
 # 2. 批量渲染高清信息图
 ego-browser nodejs < scripts/render_infographics.mjs
 
-# 3. 即时发帖到各平台
+### 默认官方发布主页 (Default Official Targets)
+- **LinkedIn 官方主页**: `https://www.linkedin.com/company/144112219/admin/page-posts/published/?editPageActiveTab=info&shareMsgArgs=null` (MA-DPP 官方企业主页，Company ID: `144112219`)
+- **Facebook 官方主页**: `https://www.facebook.com/profile.php?id=100066493838069` (Ma-dpp 官方公共主页，Page ID: `100066493838069`)
+- **Meta Business Suite 调度器**: `https://business.facebook.com/latest/composer?asset_id=100066493838069` (资产 ID: `100066493838069`)
+
+### 3. 即时发帖到各平台
 node scripts/publish_instant_linkedin.mjs
 node scripts/publish_instant_facebook.mjs
 node scripts/publish_instant_reddit.mjs --mode post --subreddit embedded --day 1
