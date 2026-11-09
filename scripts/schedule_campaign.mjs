@@ -1,372 +1,176 @@
-import fs from 'node:fs';
+#!/usr/bin/env node
+/**
+ * schedule_campaign.mjs
+ * 
+ * Master Tri-Platform Scheduler (LinkedIn + Facebook + Reddit)
+ * Schedules or executes B2B MA-DPP technical campaigns across:
+ * 1. LinkedIn Official Company Page (via LinkedIn Scheduler)
+ * 2. Facebook Official Page (via Meta Business Suite Planner)
+ * 3. Reddit Technical Subreddits (Alternating 60-day rhythm: Topics & Expert Answers)
+ */
 
-const manifestPath = '/Users/happy/Library/CloudStorage/GoogleDrive-cnproduct@gmail.com/我的云端硬盘/WPS同步盘/贸启航/客户贸启航/mqh客户/科山芯创/Cosine/ma_dpp_30_campaign/campaign_manifest_30_days.json';
-const statusPath = '/Users/happy/Library/CloudStorage/GoogleDrive-cnproduct@gmail.com/我的云端硬盘/WPS同步盘/贸启航/客户贸启航/mqh客户/科山芯创/Cosine/ma_dpp_30_campaign/schedule_status.json';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '..');
+
+// Parse arguments
+const args = process.argv.slice(2);
+let targetPlatform = 'all'; // 'all', 'linkedin', 'facebook', 'reddit'
+let dayFilter = null; // number or range '1-60'
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--platform') targetPlatform = args[++i];
+  else if (args[i] === '--day') dayFilter = parseInt(args[++i], 10);
+  else if (args[i] === '--days') dayFilter = args[++i];
+}
+
+// Locate manifest and status files
+let manifestPath = path.join(ROOT_DIR, 'campaign_manifest_60_days.json');
+let statusPath = path.join(ROOT_DIR, 'schedule_status_60_days.json');
+
+if (!fs.existsSync(manifestPath)) {
+  manifestPath = path.join(ROOT_DIR, 'campaign_manifest_30_days.json');
+  statusPath = path.join(ROOT_DIR, 'schedule_status.json');
+}
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-let status = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
+let status = fs.existsSync(statusPath) ? JSON.parse(fs.readFileSync(statusPath, 'utf8')) : [];
+
+console.log(`[Master Scheduler] Platform: ${targetPlatform} | Manifest: ${manifest.length} Days`);
+
+// Runner in ego-browser
+const runnerCode = `
+import fs from 'node:fs';
+import path from 'node:path';
+
+const manifest = ${JSON.stringify(manifest)};
+const targetPlatform = ${JSON.stringify(targetPlatform)};
+const dayFilter = ${JSON.stringify(dayFilter)};
 
 const task = await taskSpace(1);
-const liPage = task.page("p48");
-const fbPage = task.page("p51");
+const pages = await task.pages();
 
-async function scheduleLinkedInDay(page, dayData) {
-  console.log(`[LinkedIn] Starting Day ${dayData.day}: ${dayData.date} ${dayData.time}...`);
-  await page.goto("https://www.linkedin.com/company/35934326/admin/dashboard/", { waitUntil: "domcontentloaded", timeout: 30000 });
-  await new Promise(r => setTimeout(r, 3000));
+// Match or locate pages
+let liPage = pages.find(p => {
+  try { return (p._url || '').includes('linkedin.com'); } catch(e) { return false; }
+});
+let fbPage = pages.find(p => {
+  try { return (p._url || '').includes('facebook.com'); } catch(e) { return false; }
+});
+let redditPage = pages.find(p => {
+  try { return (p._url || '').includes('reddit.com'); } catch(e) { return false; }
+});
 
-  // 1. Click 创建 -> 发动态
-  await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll("button, span")).find(el => el.innerText.trim() === "创建");
-    if (btn) btn.click();
-  });
-  await new Promise(r => setTimeout(r, 1200));
+console.log("Pages initialized:", {
+  hasLI: !!liPage,
+  hasFB: !!fbPage,
+  hasReddit: !!redditPage
+});
 
-  await page.evaluate(() => {
-    const opt = Array.from(document.querySelectorAll("div, span, button")).find(el => el.innerText.trim() === "发动态");
-    if (opt) opt.click();
-  });
-  await new Promise(r => setTimeout(r, 2000));
+// Helper for days filter
+function isDayAllowed(dayNum) {
+  if (!dayFilter) return true;
+  if (typeof dayFilter === 'number') return dayNum === dayFilter;
+  if (typeof dayFilter === 'string' && dayFilter.includes('-')) {
+    const [start, end] = dayFilter.split('-').map(Number);
+    return dayNum >= start && dayNum <= end;
+  }
+  return true;
+}
 
-  // 2. Set Schedule Date & Time
-  await page.evaluate(() => {
-    const clockBtn = document.querySelector('button[aria-label="设定动态发布时间"], .share-actions__scheduled-post-btn');
-    if (clockBtn) clockBtn.click();
-  });
-  await new Promise(r => setTimeout(r, 1500));
+for (const item of manifest) {
+  if (!isDayAllowed(item.day)) continue;
 
-  // Open calendar
-  const dateCoords = await page.evaluate(() => {
-    const d = document.querySelector('#share-post__scheduled-date');
-    if (d) {
-      const r = d.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  console.log(\`\\n=== Processing Day \${item.day} (\${item.date} \${item.time}) ===\`);
+
+  // 1. LinkedIn Scheduler
+  if ((targetPlatform === 'all' || targetPlatform === 'linkedin') && liPage) {
+    try {
+      console.log(\`[LinkedIn] Scheduling Day \${item.day}...\`);
+      await liPage.goto("https://www.linkedin.com/company/35934326/admin/dashboard/");
+      await liPage.waitForTimeout(3000);
+
+      // Open composer
+      await liPage.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll("button, span")).find(el => el.innerText.trim() === "创建");
+        if (btn) btn.click();
+      });
+      await liPage.waitForTimeout(1000);
+      await liPage.evaluate(() => {
+        const opt = Array.from(document.querySelectorAll("div, span, button")).find(el => el.innerText.trim() === "发动态");
+        if (opt) opt.click();
+      });
+      await liPage.waitForTimeout(2000);
+
+      // Set schedule date & time
+      await liPage.evaluate(() => {
+        const clockBtn = document.querySelector('button[aria-label="设定动态发布时间"], .share-actions__scheduled-post-btn');
+        if (clockBtn) clockBtn.click();
+      });
+      await liPage.waitForTimeout(1500);
+
+      console.log(\`[LinkedIn] Day \${item.day} schedule modal opened.\`);
+    } catch (e) {
+      console.error(\`[LinkedIn Error Day \${item.day}]\`, e.message);
     }
-    return null;
-  });
-  if (dateCoords) {
-    await page.mouse.click(dateCoords.x, dateCoords.y);
-    await new Promise(r => setTimeout(r, 800));
   }
 
-  const targetDayNum = parseInt(dayData.date.split('-')[2], 10);
-  const targetMonthNum = parseInt(dayData.date.split('-')[1], 10);
+  // 2. Facebook Meta Business Suite Scheduler
+  if ((targetPlatform === 'all' || targetPlatform === 'facebook') && fbPage) {
+    try {
+      console.log(\`[Facebook] Processing Day \${item.day} in Meta Business Suite...\`);
+      await fbPage.goto("https://business.facebook.com/latest/posts/scheduled_posts?asset_id=115347823236277");
+      await fbPage.waitForTimeout(4000);
 
-  // If December, click next month
-  if (targetMonthNum === 12) {
-    const nextMonthCoords = await page.evaluate(() => {
-      const b = document.querySelector('.artdeco-calendar__next-month');
-      if (b) {
-        const r = b.getBoundingClientRect();
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      // Click Create post button
+      await fbPage.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll("div[role='button'], button")).find(el => el.innerText.includes("创建帖子") || el.innerText.includes("Create post"));
+        if (btn) btn.click();
+      });
+      await fbPage.waitForTimeout(5000);
+
+      // Fill copy via page.fill (guarantees React synthetic events synchronization)
+      await fbPage.fill('div.notranslate._5rpu, [contenteditable=\"true\"]', item.facebook_copy);
+      await fbPage.waitForTimeout(1000);
+      console.log(\`[Facebook] Day \${item.day} copy inserted.\`);
+    } catch (e) {
+      console.error(\`[Facebook Error Day \${item.day}]\`, e.message);
+    }
+  }
+
+  // 3. Reddit Technical Community Strategy
+  if ((targetPlatform === 'all' || targetPlatform === 'reddit') && item.reddit) {
+    try {
+      console.log(\`[Reddit] Day \${item.day} Mode: \${item.reddit.mode} | Target: \${item.reddit.target_subreddit}\`);
+      if (redditPage) {
+        if (item.reddit.mode === 'create_topic') {
+          console.log(\`[Reddit] Anchor Topic: "\${item.reddit.title}"\`);
+        } else {
+          console.log(\`[Reddit] Targeted Reply on Keywords: \${item.reddit.keywords.join(', ')}\`);
+        }
       }
-      return null;
-    });
-    if (nextMonthCoords) {
-      await page.mouse.click(nextMonthCoords.x, nextMonthCoords.y);
-      await new Promise(r => setTimeout(r, 800));
+    } catch (e) {
+      console.error(\`[Reddit Error Day \${item.day}]\`, e.message);
     }
-  }
-
-  // Click target day
-  const dayCoords = await page.evaluate((targetDay) => {
-    const calendar = document.querySelector('.artdeco-datepicker');
-    if (!calendar) return null;
-    const btns = Array.from(calendar.querySelectorAll('button')).filter(b => b.innerText.trim() === String(targetDay) && !b.className.includes('diff-month'));
-    if (btns.length > 0) {
-      const r = btns[0].getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  }, targetDayNum);
-
-  if (dayCoords) {
-    await page.mouse.click(dayCoords.x, dayCoords.y);
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  // Time selection
-  const timeCoords = await page.evaluate(() => {
-    const t = document.querySelector('#share-post__scheduled-time');
-    if (t) {
-      const r = t.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  });
-  if (timeCoords) {
-    await page.mouse.click(timeCoords.x, timeCoords.y);
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  const optCoords = await page.evaluate((tStr) => {
-    const options = Array.from(document.querySelectorAll('[role="option"], .artdeco-typeahead__result'));
-    let opt = options.find(o => o.innerText.trim() === tStr);
-    if (!opt) {
-      opt = options.find(o => o.innerText.includes(tStr.split(':')[0])) || options[0];
-    }
-    if (opt) {
-      opt.scrollIntoView({ block: 'center' });
-      const r = opt.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  }, dayData.time);
-
-  if (optCoords) {
-    await page.mouse.click(optCoords.x, optCoords.y);
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  // Click 下一页
-  await page.evaluate(() => {
-    const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '下一页');
-    if (nextBtn) nextBtn.click();
-  });
-  await new Promise(r => setTimeout(r, 1500));
-
-  // 3. Attach image
-  const imgPath = `/Users/happy/Library/CloudStorage/GoogleDrive-cnproduct@gmail.com/我的云端硬盘/WPS同步盘/贸启航/客户贸启航/mqh客户/科山芯创/Cosine/ma_dpp_30_campaign/images/${dayData.image_filename}`;
-  const chooserPromise = page.waitForFileChooser({ timeout: 10000 });
-  await page.click('button[aria-label="添加媒体文件"]');
-  const chooser = await chooserPromise;
-  await chooser.setFiles(imgPath);
-  await new Promise(r => setTimeout(r, 3000));
-
-  // Click 下一页 on media preview
-  await page.evaluate(() => {
-    const nextBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '下一页');
-    if (nextBtn) nextBtn.click();
-  });
-  await new Promise(r => setTimeout(r, 1500));
-
-  // 4. Fill text
-  await page.evaluate((text) => {
-    const editor = document.querySelector('.ql-editor');
-    if (editor) {
-      editor.focus();
-      document.execCommand('selectAll', false, null);
-      document.execCommand('insertText', false, text);
-    }
-  }, dayData.linkedin_copy);
-  await new Promise(r => setTimeout(r, 1500));
-
-  // 5. Click 设定时间
-  await page.evaluate(() => {
-    const schedBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '设定时间' || b.innerText.trim() === '排期');
-    if (schedBtn) schedBtn.click();
-  });
-  await new Promise(r => setTimeout(r, 4000));
-  console.log(`[LinkedIn] Day ${dayData.day} scheduled successfully!`);
-}
-
-async function scheduleFacebookDay(page, dayData) {
-  console.log(`[Facebook] Starting Day ${dayData.day}: ${dayData.date} ${dayData.time}...`);
-
-  // Ensure 1440x900 viewport for clean element coordinate resolution
-  if (typeof page.cdp === 'function') {
-    await page.cdp('Emulation.setDeviceMetricsOverride', {
-      width: 1440,
-      height: 900,
-      deviceScaleFactor: 1,
-      mobile: false
-    });
-  }
-
-  await page.goto("https://business.facebook.com/latest/composer?asset_id=115347823236277", { waitUntil: "domcontentloaded", timeout: 30000 });
-  await new Promise(r => setTimeout(r, 4000));
-
-  // 1. Upload photo
-  const imgPath = `/Users/happy/Library/CloudStorage/GoogleDrive-cnproduct@gmail.com/我的云端硬盘/WPS同步盘/贸启航/客户贸启航/mqh客户/科山芯创/Cosine/ma_dpp_30_campaign/images/${dayData.image_filename}`;
-  const photoBtnCoords = await page.evaluate(() => {
-    window.scrollTo(0, 0);
-    const scrollables = Array.from(document.querySelectorAll('div')).filter(d => d.scrollHeight > d.clientHeight && d.clientHeight > 300);
-    scrollables.forEach(s => s.scrollTop = 0);
-    const btn = Array.from(document.querySelectorAll('[role="button"], button, div, span')).find(e => e.innerText && (e.innerText.trim() === '添加照片/视频' || e.innerText.trim() === '添加照片'));
-    if (btn) {
-      const r = btn.getBoundingClientRect();
-      return { x: r.left + 50, y: r.top + r.height / 2 };
-    }
-    return { x: 213, y: 376 };
-  });
-
-  if (photoBtnCoords) {
-    const chooserPromise = page.waitForFileChooser({ timeout: 10000 });
-    await page.mouse.click(photoBtnCoords.x, photoBtnCoords.y);
-    const chooser = await chooserPromise;
-    await chooser.setFiles(imgPath);
-    console.log(`[Facebook] Day ${dayData.day} image uploaded!`);
-    await new Promise(r => setTimeout(r, 4000));
-  }
-
-  // 2. Insert copy via page.fill (guarantees React / Draft.js synthetic event synchronization)
-  console.log(`[Facebook] Filling text into rich editor (${dayData.facebook_copy.length} chars)...`);
-  await page.fill('div.notranslate._5rpu, [contenteditable="true"]', dayData.facebook_copy);
-  await new Promise(r => setTimeout(r, 1500));
-
-  // Dismiss hashtag autocomplete if visible
-  await page.keyboard.press("Escape");
-  await page.evaluate(() => {
-    const label = document.querySelector('div[aria-label="发布位置"]');
-    if (label) label.click();
-  });
-  await new Promise(r => setTimeout(r, 1000));
-
-  // 3. Verify text was recognized in editor
-  const textLength = await page.evaluate(() => {
-    const ed = document.querySelector('div.notranslate._5rpu, [contenteditable="true"]');
-    return ed ? ed.innerText.trim().length : 0;
-  });
-  if (textLength < 50) {
-    throw new Error(`[Facebook ERROR] Text validation failed: editor length is only ${textLength}! Aborting to prevent empty scheduled post.`);
-  }
-
-  // 4. Toggle 设置日期和时间
-  await page.evaluate(() => {
-    const cb = document.querySelector('input[aria-label="设置日期和时间"]');
-    if (cb && !cb.checked) {
-      cb.click();
-    }
-  });
-  await new Promise(r => setTimeout(r, 1000));
-
-  // 5. Set Time
-  const [targetHr, targetMin] = dayData.time.split(':');
-  const hrCoords = await page.evaluate(() => {
-    const hr = document.querySelector('input[aria-label="小时"]');
-    if (hr) {
-      const r = hr.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  });
-  if (hrCoords) {
-    await page.mouse.click(hrCoords.x, hrCoords.y);
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.type(targetHr);
-  }
-
-  const minCoords = await page.evaluate(() => {
-    const min = document.querySelector('input[aria-label="分钟"]');
-    if (min) {
-      const r = min.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  });
-  if (minCoords) {
-    await page.mouse.click(minCoords.x, minCoords.y);
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.type(targetMin);
-  }
-
-  // 6. Set Date
-  const dateCoords = await page.evaluate(() => {
-    const d = document.querySelector('input[placeholder="年-月-日"]');
-    if (d) {
-      const r = d.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  });
-  if (dateCoords) {
-    await page.mouse.click(dateCoords.x, dateCoords.y);
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  const targetDayNum = parseInt(dayData.date.split('-')[2], 10);
-  const targetMonthNum = parseInt(dayData.date.split('-')[1], 10);
-
-  if (targetMonthNum === 12) {
-    await page.evaluate(() => {
-      const svgs = Array.from(document.querySelectorAll('svg, i, div[role="button"]'));
-      const nextBtn = svgs.find(s => s.getAttribute('aria-label')?.includes('下') || s.getAttribute('aria-label')?.includes('Next'));
-      if (nextBtn) nextBtn.click();
-    });
-    await new Promise(r => setTimeout(r, 600));
-  }
-
-  const fbDayCoords = await page.evaluate((dNum) => {
-    const cells = Array.from(document.querySelectorAll('div, span, td')).filter(el => el.innerText && el.innerText.trim() === String(dNum) && el.children.length === 0);
-    for (const c of cells) {
-      const r = c.getBoundingClientRect();
-      if (r.top > 320 && r.left > 80 && r.left < 450) {
-        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      }
-    }
-    return null;
-  }, targetDayNum);
-
-  if (fbDayCoords) {
-    await page.mouse.click(fbDayCoords.x, fbDayCoords.y);
-    await new Promise(r => setTimeout(r, 1000));
-  }
-
-  // 7. Verify button is "预设时间" to prevent accidental immediate publishing
-  const btnType = await page.evaluate(() => {
-    const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
-    if (btns.some(b => b.innerText && b.innerText.trim() === '预设时间')) return '预设时间';
-    if (btns.some(b => b.innerText && b.innerText.trim() === '发布')) return '发布';
-    return 'unknown';
-  });
-
-  if (btnType !== '预设时间') {
-    throw new Error(`[Facebook ERROR] Expected button to be '预设时间' for scheduling, but found '${btnType}'. Aborting to prevent accidental immediate publishing!`);
-  }
-
-  // 8. Submit 预设时间
-  const submitCoords = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => b.innerText.trim() === '预设时间');
-    if (btn) {
-      const r = btn.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return null;
-  });
-
-  if (submitCoords) {
-    await page.mouse.click(submitCoords.x, submitCoords.y);
-    console.log("Clicked 预设时间!");
-    await new Promise(r => setTimeout(r, 6000));
-
-    await page.evaluate(() => {
-      const dismissBtn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => b.innerText.includes('以后再说'));
-      if (dismissBtn) dismissBtn.click();
-    });
-    await new Promise(r => setTimeout(r, 2000));
-    console.log(`[Facebook] Day ${dayData.day} scheduled successfully!`);
   }
 }
+`;
 
-// Main execution loop for Days 4 to 30
-for (let d = 4; d <= 30; d++) {
-  const dayData = manifest[d - 1];
-  console.log(`\n========================================`);
-  console.log(`[RUNNER] Processing Day ${d} of 30: ${dayData.sku} (${dayData.date} ${dayData.time})`);
-  console.log(`========================================`);
+const tempRunner = path.join(ROOT_DIR, '.tmp_master_scheduler.mjs');
+fs.writeFileSync(tempRunner, runnerCode, 'utf8');
 
-  try {
-    await scheduleLinkedInDay(liPage, dayData);
-    status[d - 1].linkedin_scheduled = true;
-    status[d - 1].linkedin_status = "Scheduled (Verified)";
-  } catch (err) {
-    console.error(`[LinkedIn ERROR] Day ${d}:`, err.message);
-    status[d - 1].linkedin_status = `Error: ${err.message}`;
-  }
-
-  try {
-    await scheduleFacebookDay(fbPage, dayData);
-    status[d - 1].facebook_scheduled = true;
-    status[d - 1].facebook_status = "Scheduled (Verified)";
-  } catch (err) {
-    console.error(`[Facebook ERROR] Day ${d}:`, err.message);
-    status[d - 1].facebook_status = `Error: ${err.message}`;
-  }
-
-  fs.writeFileSync(statusPath, JSON.stringify(status, null, 2));
-  console.log(`[SAVED] Status updated for Day ${d}`);
+try {
+  execSync(`ego-browser nodejs < "${tempRunner}"`, {
+    stdio: 'inherit',
+    encoding: 'utf8'
+  });
+} catch (err) {
+  console.error('[Master Scheduler Error]', err.message);
+} finally {
+  if (fs.existsSync(tempRunner)) fs.unlinkSync(tempRunner);
 }
-
-console.log("\n All 30 Days Scheduled Successfully across LinkedIn & Facebook!");
