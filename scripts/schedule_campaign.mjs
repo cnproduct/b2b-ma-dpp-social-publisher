@@ -162,6 +162,17 @@ async function scheduleLinkedInDay(page, dayData) {
 
 async function scheduleFacebookDay(page, dayData) {
   console.log(`[Facebook] Starting Day ${dayData.day}: ${dayData.date} ${dayData.time}...`);
+
+  // Ensure 1440x900 viewport for clean element coordinate resolution
+  if (typeof page.cdp === 'function') {
+    await page.cdp('Emulation.setDeviceMetricsOverride', {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false
+    });
+  }
+
   await page.goto("https://business.facebook.com/latest/composer?asset_id=115347823236277", { waitUntil: "domcontentloaded", timeout: 30000 });
   await new Promise(r => setTimeout(r, 4000));
 
@@ -171,12 +182,12 @@ async function scheduleFacebookDay(page, dayData) {
     window.scrollTo(0, 0);
     const scrollables = Array.from(document.querySelectorAll('div')).filter(d => d.scrollHeight > d.clientHeight && d.clientHeight > 300);
     scrollables.forEach(s => s.scrollTop = 0);
-    const btn = Array.from(document.querySelectorAll('[role="button"]')).find(e => e.innerText && e.innerText.trim().includes('添加照片'));
+    const btn = Array.from(document.querySelectorAll('[role="button"], button, div, span')).find(e => e.innerText && (e.innerText.trim() === '添加照片/视频' || e.innerText.trim() === '添加照片'));
     if (btn) {
       const r = btn.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      return { x: r.left + 50, y: r.top + r.height / 2 };
     }
-    return null;
+    return { x: 213, y: 376 };
   });
 
   if (photoBtnCoords) {
@@ -188,18 +199,29 @@ async function scheduleFacebookDay(page, dayData) {
     await new Promise(r => setTimeout(r, 4000));
   }
 
-  // 2. Insert copy
-  await page.evaluate((text) => {
-    const textBox = document.querySelector('div[aria-label="在对话框中输入内容，即可为帖子添加文字。"], div.notranslate._5rpu');
-    if (textBox) {
-      textBox.focus();
-      document.execCommand('selectAll', false, null);
-      document.execCommand('insertText', false, text);
-    }
-  }, dayData.facebook_copy);
+  // 2. Insert copy via page.fill (guarantees React / Draft.js synthetic event synchronization)
+  console.log(`[Facebook] Filling text into rich editor (${dayData.facebook_copy.length} chars)...`);
+  await page.fill('div.notranslate._5rpu, [contenteditable="true"]', dayData.facebook_copy);
+  await new Promise(r => setTimeout(r, 1500));
+
+  // Dismiss hashtag autocomplete if visible
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => {
+    const label = document.querySelector('div[aria-label="发布位置"]');
+    if (label) label.click();
+  });
   await new Promise(r => setTimeout(r, 1000));
 
-  // 3. Toggle 设置日期和时间
+  // 3. Verify text was recognized in editor
+  const textLength = await page.evaluate(() => {
+    const ed = document.querySelector('div.notranslate._5rpu, [contenteditable="true"]');
+    return ed ? ed.innerText.trim().length : 0;
+  });
+  if (textLength < 50) {
+    throw new Error(`[Facebook ERROR] Text validation failed: editor length is only ${textLength}! Aborting to prevent empty scheduled post.`);
+  }
+
+  // 4. Toggle 设置日期和时间
   await page.evaluate(() => {
     const cb = document.querySelector('input[aria-label="设置日期和时间"]');
     if (cb && !cb.checked) {
@@ -208,7 +230,7 @@ async function scheduleFacebookDay(page, dayData) {
   });
   await new Promise(r => setTimeout(r, 1000));
 
-  // 4. Set Time
+  // 5. Set Time
   const [targetHr, targetMin] = dayData.time.split(':');
   const hrCoords = await page.evaluate(() => {
     const hr = document.querySelector('input[aria-label="小时"]');
@@ -240,7 +262,7 @@ async function scheduleFacebookDay(page, dayData) {
     await page.keyboard.type(targetMin);
   }
 
-  // 5. Set Date
+  // 6. Set Date
   const dateCoords = await page.evaluate(() => {
     const d = document.querySelector('input[placeholder="年-月-日"]');
     if (d) {
@@ -282,7 +304,19 @@ async function scheduleFacebookDay(page, dayData) {
     await new Promise(r => setTimeout(r, 1000));
   }
 
-  // 6. Submit 预设时间
+  // 7. Verify button is "预设时间" to prevent accidental immediate publishing
+  const btnType = await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
+    if (btns.some(b => b.innerText && b.innerText.trim() === '预设时间')) return '预设时间';
+    if (btns.some(b => b.innerText && b.innerText.trim() === '发布')) return '发布';
+    return 'unknown';
+  });
+
+  if (btnType !== '预设时间') {
+    throw new Error(`[Facebook ERROR] Expected button to be '预设时间' for scheduling, but found '${btnType}'. Aborting to prevent accidental immediate publishing!`);
+  }
+
+  // 8. Submit 预设时间
   const submitCoords = await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll('button, [role="button"]')).find(b => b.innerText.trim() === '预设时间');
     if (btn) {

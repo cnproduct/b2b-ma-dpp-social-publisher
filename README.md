@@ -22,8 +22,11 @@
 3. **LinkedIn 公司主页 (Company Page) 深度逆向自动化**
    - 支持向企业公开信息流即时发帖。
    - 支持进入原生排期弹窗（设定指定日期、15分钟粒度时间槽、媒体附件、富文本注入与排期确认）。
-4. **Facebook 官方主页 (Meta Business Suite) 深度逆向自动化**
+4. **Facebook 官方主页 (Meta Business Suite) 深度逆向自动化 (严格对齐 LinkedIn)**
    - 突破 Meta Composer 复杂层级定位难题，精准识别真实上传按钮与时间调节器。
+   - **默认图文全量规范**：强制发布“完整技术文案 + 权威护照落地页链接 + 完整 Hashtags 标签矩阵 + 1200×1350 专业信息图”，坚决杜绝空图帖。
+   - **React / Draft.js 状态双向同步**：通过 Playwright/ego 原生 `page.fill` 触发合成事件通道，彻底解决传统 `document.execCommand('insertText')` 导致的 React state 空字符串（“这篇帖子没有文字内容”）严重缺陷。
+   - **防误直发硬校验**：在排期模式下严格检测提交按钮必须为“预设时间”，杜绝排期脚本误直接发帖。
    - 自动同步至 Meta Business Suite **日程本 (Planner)**，支持多周/月度排期大盘。
    - 自动识别并优雅关闭发帖后的促销引导弹窗与商品标记推介。
 5. **全流程状态追踪与留证审计**

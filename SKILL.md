@@ -124,11 +124,12 @@ ego-browser nodejs < scripts/verify_planner.mjs
 - **文案注入**: Quill 富文本编辑器 (`.ql-editor`) 必须先获取焦点 `editor.focus()`，再通过 `document.execCommand('insertText', false, text)` 注入，确保触发表单变更侦听。
 
 ### 2. Facebook (Meta Business Suite & Native Page)
-- **照片上传按钮定位**: Meta 页面外层存在多个宽高庞大的容器，必须准确定位内部的 `[role="button"]`（文本包含 `添加照片`），坐标通常在左侧面板居中偏左位置，使用 `page.mouse.click(x, y)` 激活文件选择器。
-- **定时开关**: 定位复选框 `input[aria-label="设置日期和时间"]`。
-- **时分输入**: 分别定位 `input[aria-label="小时"]` 与 `input[aria-label="分钟"]`，使用键盘 Backspace 清空后输入两位时间。
-- **日期选择**: 点击 `input[placeholder="年-月-日"]` 唤起日历，点击目标日期网格单元格。
-- **即时发布弹窗处理**: 在公共主页前台发布时，提交后若弹出“直接与用户对话（添加立即拨打按钮）”或“探索商品标记功能”等营销推介弹窗，需自动点击 `以后再说` 或右上角 `X` 优雅关闭。
+- **图文与标签全量默认规范 (Full Text + Image + Tags)**: Facebook 帖子默认且必须严格与 LinkedIn 保持一致，包含完整技术文案标题、法规背景说明、官方落地页 URL、完整行业标签矩阵（#CosineChips #MADPP #Semiconductor ...）以及 1200×1350 高清专业信息图。
+- **React / Draft.js 状态同步防踩坑 (严格禁用 execCommand)**: Meta Business Suite 的富文本编辑器基于 React + Draft.js。严禁使用 `document.execCommand('insertText')`，否则 DOM 看似有字但 React 内部状态为 `""`，提交后会变成无文字的空图帖（Meta 大盘提示“这篇帖子没有文字内容”）。**必须使用自动化测试框架的原生输入事件 `await page.fill('div.notranslate._5rpu, [contenteditable="true"]', fullCopy)`** 触发表单合成事件，并在提交前校验 `textLength > 50`。
+- **照片上传按钮定位**: Meta 页面外层存在多个宽高庞大的容器，必须准确定位内部的 `[role="button"]`（文本包含 `添加照片`），坐标通常在左侧面板居中偏左位置（偏移 +50px，如 `x: 213, y: 376`），使用 `page.mouse.click(x, y)` 激活文件选择器。
+- **防误直发硬校验 (Schedule Button Guard)**: 排期模式下开启“设置日期和时间”后，必须校验底部的提交按钮已变成“预设时间”（而非蓝色的“发布”），若发现按钮仍为“发布”则强制中断，杜绝排期脚本误直接发帖。
+- **定时开关与日期时分**: 定位复选框 `input[aria-label="设置日期和时间"]`；分别定位 `input[aria-label="小时"]` 与 `input[aria-label="分钟"]`，使用键盘 Backspace 清空后输入两位时间；点击 `input[placeholder="年-月-日"]` 唤起日历选中目标日期。
+- **弹窗与标签联想关闭**: 输入包含 `#` 的标签后按 `Escape` 并点击空白区域关闭联想菜单；提交后若弹出“通过速推向更大规模的受众推广”等营销弹窗，自动点击 `以后再说` 或右上角 `X` 优雅关闭。
 
 ---
 
